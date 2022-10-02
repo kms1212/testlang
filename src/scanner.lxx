@@ -4,8 +4,6 @@
 #include "parser.hpp"
 #include "location.hh"
 #include "report.hpp"
-
-extern std::vector<std::string> svalstack;
 %}
 
 %option bison-cc bison-locations noyywrap unicode
@@ -25,16 +23,16 @@ IDENTIFIER ({LETTER}|_)({LETTER}|{DIGIT_DEC}|_)*
 \/\/{ANY_STR}                  ;
 "/*"(.|\n)*"*/"                ;
 
-\"{ANY_STR}\"                  { svalstack.push_back(str()); return yy::parser::token::TOKEN_STRING; }
+\"{ANY_STR}\"                  { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_STRING; }
 
-`({ANY_CHAR}|\n)*`             { svalstack.push_back(str()); return yy::parser::token::TOKEN_RAWSTRING; }
+`({ANY_CHAR}|\n)*`             { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_RAWSTRING; }
 
-\'{ANY_CHAR}*\'                { svalstack.push_back(str()); return yy::parser::token::TOKEN_CHAR; }
+\'{ANY_CHAR}*\'                { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_CHAR; }
 
-{DIGIT_DEC}+                   { svalstack.push_back(str()); return yy::parser::token::TOKEN_NUM_DEC; }
-0[xX]{DIGIT_HEX}+              { svalstack.push_back(str()); return yy::parser::token::TOKEN_NUM_HEX; }
-0[oO]{DIGIT_OCT}+              { svalstack.push_back(str()); return yy::parser::token::TOKEN_NUM_OCT; }
-0[bB]{DIGIT_BIN}+              { svalstack.push_back(str()); return yy::parser::token::TOKEN_NUM_BIN; }
+{DIGIT_DEC}+                   { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_NUM_DEC; }
+0[xX]{DIGIT_HEX}+              { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_NUM_HEX; }
+0[oO]{DIGIT_OCT}+              { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_NUM_OCT; }
+0[bB]{DIGIT_BIN}+              { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_NUM_BIN; }
 
 import                         return yy::parser::token::TOKEN_IMPORT;
 
@@ -56,7 +54,7 @@ return                         return yy::parser::token::TOKEN_RETURN;
 break                          return yy::parser::token::TOKEN_BREAK;
 continue                       return yy::parser::token::TOKEN_CONTINUE;
 
-{IDENTIFIER}                   { svalstack.push_back(str()); return yy::parser::token::TOKEN_IDEN; }
+{IDENTIFIER}                   { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_IDEN; }
 
 "{"                            return '{';
 "}"                            return '}';

@@ -1,0 +1,36 @@
+NodeList: 
+	Import: 
+		ParentOf(Identifier: lang): 
+			Identifier: io
+	Import: 
+		ParentOf(Identifier: lang): 
+			ParentOf(Identifier: entrypoint): 
+				Identifier: EntryPoint
+	Import: 
+		ParentOf(Identifier: lang): 
+			ParentOf(Identifier: cli): 
+				Identifier: CliEntry
+	ClassDecl: Test
+		NodeList: 
+			FunctionDecl: function
+				NodeList: args
+				NodeList: 
+					DummyNode: Jump stmt
+
+
+	ClassDecl: Main
+		NodeList: 
+			FunctionDecl: onProgramStart
+				NodeList: args
+					ParamDecl: String (args)
+				NodeList: 
+					ParentOf(Identifier: io): 
+						ParentOf(Identifier: stdout): 
+							FuncCall(Identifier: println):
+								NodeList: args
+									KeyValue: msg
+										Literal(string): "Hello, world!"
+
+					DummyNode: Jump stmt
+
+

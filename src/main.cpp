@@ -26,6 +26,20 @@ int main(int argc, char** argv) {
 
     parser.parse();
 
-    std::cout << root->str() << std::endl;
+    fclose(fp);
+
+    if (argc == 3) {
+        FILE *out = fopen(argv[2], "w");
+        if (!out) {
+            std::cerr << "Open failed on '" << argv[2] << "'" << std::endl;
+            exit(5);
+        }
+        std::cerr << "Opened " << argv[2] << std::endl;
+        fprintf(out, "%s", root->str().c_str());
+        fclose(out);
+    } else 
+        std::cout << root->str() << std::endl;
+
+    delete root;
     return 0;
 }
