@@ -1,0 +1,122 @@
+%top{
+#include <cstdio>
+#include <cstring>
+#include "parser.hpp"
+#include "location.hh"
+#include "report.hpp"
+
+extern std::vector<std::string> svalstack;
+%}
+
+%option bison-cc bison-locations noyywrap unicode
+%option namespace=yy lexer=Lexer lex=yylex
+
+ANY_CHAR ([^\\\"]|\\.)
+ANY_STR {ANY_CHAR}*
+WHITESPACE [ \t\r\n]*
+LETTER [a-zA-Z]
+DIGIT_DEC [0-9]
+DIGIT_HEX [0-9a-fA-F]
+DIGIT_OCT [0-7]
+DIGIT_BIN [01]
+IDENTIFIER ({LETTER}|_)({LETTER}|{DIGIT_DEC}|_)*
+
+%%
+\/\/{ANY_STR}                  ;
+"/*"(.|\n)*"*/"                ;
+
+\"{ANY_STR}\"                  { svalstack.push_back(str()); return yy::parser::token::TOKEN_STRING; }
+
+`({ANY_CHAR}|\n)*`             { svalstack.push_back(str()); return yy::parser::token::TOKEN_RAWSTRING; }
+
+\'{ANY_CHAR}*\'                { svalstack.push_back(str()); return yy::parser::token::TOKEN_CHAR; }
+
+{DIGIT_DEC}+                   { svalstack.push_back(str()); return yy::parser::token::TOKEN_NUM_DEC; }
+0[xX]{DIGIT_HEX}+              { svalstack.push_back(str()); return yy::parser::token::TOKEN_NUM_HEX; }
+0[oO]{DIGIT_OCT}+              { svalstack.push_back(str()); return yy::parser::token::TOKEN_NUM_OCT; }
+0[bB]{DIGIT_BIN}+              { svalstack.push_back(str()); return yy::parser::token::TOKEN_NUM_BIN; }
+
+import                         return yy::parser::token::TOKEN_IMPORT;
+
+class                          return yy::parser::token::TOKEN_CLASS;
+struct                         return yy::parser::token::TOKEN_STRUCT;
+enum                           return yy::parser::token::TOKEN_ENUM;
+protocol                       return yy::parser::token::TOKEN_PROTOCOL;
+extension                      return yy::parser::token::TOKEN_EXTENSION;
+if                             return yy::parser::token::TOKEN_IF;
+else                           return yy::parser::token::TOKEN_ELSE;
+while                          return yy::parser::token::TOKEN_WHILE;
+for                            return yy::parser::token::TOKEN_FOR;
+in                             return yy::parser::token::TOKEN_IN;
+where                          return yy::parser::token::TOKEN_WHERE;
+switch                         return yy::parser::token::TOKEN_SWITCH;
+case                           return yy::parser::token::TOKEN_CASE;
+default                        return yy::parser::token::TOKEN_DEFAULT;
+return                         return yy::parser::token::TOKEN_RETURN;
+break                          return yy::parser::token::TOKEN_BREAK;
+continue                       return yy::parser::token::TOKEN_CONTINUE;
+
+{IDENTIFIER}                   { svalstack.push_back(str()); return yy::parser::token::TOKEN_IDEN; }
+
+"{"                            return '{';
+"}"                            return '}';
+"["                            return '[';
+"]"                            return ']';
+"("                            return '(';
+")"                            return ')';
+"="                            return '=';
+"+"                            return '+';
+"-"                            return '-';
+"*"                            return '*';
+"/"                            return '/';
+"%"                            return '%';
+"|"                            return '|';
+"&"                            return '&';
+"~"                            return '~';
+"^"                            return '^';
+"<"                            return '<';
+">"                            return '>';
+"?"                            return '?';
+"!"                            return '!';
+"."                            return '.';
+","                            return ',';
+":"                            return ':';
+";"                            return ';';
+"@"                            return '@';
+"#"                            return '#';
+\\                             return '\\';
+"$"                            return '$';
+
+"**"                           return yy::parser::token::TOKEN_DSTAR;
+"+="                           return yy::parser::token::TOKEN_PLUS_EQUAL;
+"-="                           return yy::parser::token::TOKEN_MINUS_EQUAL;
+"*="                           return yy::parser::token::TOKEN_STAR_EQUAL;
+"/="                           return yy::parser::token::TOKEN_SLASH_EQUAL;
+"%="                           return yy::parser::token::TOKEN_PERCENT_EQUAL;
+"**="                          return yy::parser::token::TOKEN_DSTAR_EQUAL;
+
+"<<"                           return yy::parser::token::TOKEN_DLANGLEBRACKET;
+">>"                           return yy::parser::token::TOKEN_DRANGLEBRACKET;
+
+"|="                           return yy::parser::token::TOKEN_PIPE_EQUAL;
+"&="                           return yy::parser::token::TOKEN_AMPERSAND_EQUAL;
+"~="                           return yy::parser::token::TOKEN_TILDE_EQUAL;
+"^="                           return yy::parser::token::TOKEN_HAT_EQUAL;
+"<<="                          return yy::parser::token::TOKEN_DLAB_EQUAL;
+">>="                          return yy::parser::token::TOKEN_DRAB_EQUAL;
+
+"=="                           return yy::parser::token::TOKEN_DEQUAL;
+"==="                          return yy::parser::token::TOKEN_TEQUAL;
+"!=="                          return yy::parser::token::TOKEN_EMARK_DEQUAL;
+"!="                           return yy::parser::token::TOKEN_EMARK_EQUAL;
+"<="                           return yy::parser::token::TOKEN_LAB_EQUAL;
+">="                           return yy::parser::token::TOKEN_RAB_EQUAL;
+
+"||"                           return yy::parser::token::TOKEN_DPIPE;
+"&&"                           return yy::parser::token::TOKEN_DAMPERSAND;
+
+{WHITESPACE}                   ;
+
+.                              { report::error(std::to_string(lineno()) + "l, " + std::to_string(columno()) + "c: " +
+                                   "Unexpected character '" + std::string(text()) + "'"); };
+%%
