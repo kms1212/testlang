@@ -41,6 +41,7 @@ struct                         return yy::parser::token::TOKEN_STRUCT;
 enum                           return yy::parser::token::TOKEN_ENUM;
 protocol                       return yy::parser::token::TOKEN_PROTOCOL;
 extension                      return yy::parser::token::TOKEN_EXTENSION;
+mixin                          return yy::parser::token::TOKEN_MIXIN;
 if                             return yy::parser::token::TOKEN_IF;
 else                           return yy::parser::token::TOKEN_ELSE;
 while                          return yy::parser::token::TOKEN_WHILE;
@@ -99,7 +100,7 @@ continue                       return yy::parser::token::TOKEN_CONTINUE;
 "|="                           return yy::parser::token::TOKEN_PIPE_EQUAL;
 "&="                           return yy::parser::token::TOKEN_AMPERSAND_EQUAL;
 "~="                           return yy::parser::token::TOKEN_TILDE_EQUAL;
-"^="                           return yy::parser::token::TOKEN_HAT_EQUAL;
+"^="                           return yy::parser::token::TOKEN_CARET_EQUAL;
 "<<="                          return yy::parser::token::TOKEN_DLAB_EQUAL;
 ">>="                          return yy::parser::token::TOKEN_DRAB_EQUAL;
 

@@ -14,8 +14,36 @@ std::string ast::ASTNode::get_indent() {
     return indent;
 }
 
+void ast::ASTNode::add_attributes(std::vector<Attribute*>* attributes) {
+    if (attributes == nullptr)
+        return;
+
+    for (auto attribute : *attributes) {
+        attr.push_back(attribute);
+    }
+}
+
+std::string ast::ASTNode::attrib_str(bool indent) {
+    if (attr.size() == 0)
+        return "";
+
+    std::string str = "\n" + (indent ? get_indent() + "\t" : "") + "Attributes: ";
+    for (auto attribute : attr) {
+        str += "(" + attribute->str() + "), ";
+    }
+    return str;
+}
+
+ast::Attribute::~Attribute() {
+    delete expression_;
+}
+
+std::string ast::Attribute::str() {
+    return expression_->str(false);
+}
+
 std::string ast::DummyNode::str(bool indent) {
-    return (indent ? get_indent() : "") + "DummyNode: " + name_;
+    return (indent ? get_indent() : "") + "DummyNode: " + name_ + attrib_str();
 }
 
 void ast::NodeList::add(ASTNode* node) {
@@ -23,7 +51,7 @@ void ast::NodeList::add(ASTNode* node) {
 }
 
 std::string ast::NodeList::str(bool indent) {
-    std::string str = (indent ? get_indent() : "") + "NodeList: " + name_ + "\n";
+    std::string str = (indent ? get_indent() : "") + "NodeList: " + name_ + attrib_str() + "\n";
     for (auto node : nodes_) {
         node->set_indent((indent ? indent_ : 0) + 1);
         str += node->str() + "\n";
@@ -40,7 +68,7 @@ ast::NodeList::~NodeList() {
 std::string ast::ParentOf::str(bool indent) {
     child_->set_indent((indent ? indent_ : 0) + 1);
     current_->set_indent((indent ? indent_ : 0) + 1);
-    return (indent ? get_indent() : "") + "ParentOf(" + current_->str(false) + "): \n" + child_->str();
+    return (indent ? get_indent() : "") + "ParentOf(" + current_->str(false) + "): " + attrib_str() + "\n" + child_->str();
 }
 
 ast::ParentOf::~ParentOf() {
@@ -48,16 +76,16 @@ ast::ParentOf::~ParentOf() {
 }
 
 std::string ast::Literal::str(bool indent) {
-    return (indent ? get_indent() : "") + "Literal(" + type_ + "): " + valuestr_;
+    return (indent ? get_indent() : "") + "Literal(" + type_ + "): " + valuestr_ + attrib_str();
 }
 
 std::string ast::Identifier::str(bool indent) {
-    return (indent ? get_indent() : "") + "Identifier: " + name_;
+    return (indent ? get_indent() : "") + "Identifier: " + name_ + attrib_str();
 }
 
 std::string ast::Import::str(bool indent) {
     path_->set_indent((indent ? indent_ : 0) + 1);
-    return (indent ? get_indent() : "") + "Import: \n" + path_->str();
+    return (indent ? get_indent() : "") + "Import: " + attrib_str() + "\n" + path_->str();
 }
 
 ast::Import::~Import() {
@@ -70,7 +98,7 @@ std::string ast::ClassDecl::str(bool indent) {
     }
     body_->set_indent((indent ? indent_ : 0) + 1);
 
-    std::string str = (indent ? get_indent() : "") + "ClassDecl: " + name_ + "\n" + body_->str();
+    std::string str = (indent ? get_indent() : "") + "ClassDecl: " + name_ + attrib_str() + "\n" + body_->str();
     return str;
 }
 
@@ -78,10 +106,30 @@ ast::ClassDecl::~ClassDecl() {
     delete body_;
 }
 
-std::string ast::FuncDecl::str(bool indent) {
-    args_->set_indent((indent ? indent_ : 0) + 1);
+std::string ast::MixinDecl::str(bool indent) {
+    if (parent_ != nullptr) {
+        parent_->set_indent((indent ? indent_ : 0)+ 1);
+    }
     body_->set_indent((indent ? indent_ : 0) + 1);
-    std::string str = (indent ? get_indent() : "") + "FunctionDecl: " + name_ + "\n" + args_->str() + body_->str();
+
+    std::string str = (indent ? get_indent() : "") + "MixinDecl: " + name_ + attrib_str() + "\n" + body_->str();
+    return str;
+}
+
+ast::MixinDecl::~MixinDecl() {
+    delete body_;
+}
+
+std::string ast::FuncDecl::str(bool indent) {
+    std::string str = (indent ? get_indent() : "") + "FunctionDecl: " + name_ + attrib_str() + "\n";
+    if (args_ != nullptr) {
+        args_->set_indent((indent ? indent_ : 0) + 1);
+        str += args_->str();
+    }
+    if (body_ != nullptr) {
+        body_->set_indent((indent ? indent_ : 0) + 1);
+        str += body_->str();
+    }
     return str;
 }
 
@@ -91,7 +139,20 @@ ast::FuncDecl::~FuncDecl() {
 }
 
 std::string ast::ParamDecl::str(bool indent) {
-    return (indent ? get_indent() : "") + "ParamDecl: " + name_ + " (" + type_ + ")";
+    return (indent ? get_indent() : "") + "ParamDecl: " + name_ + attrib_str() + " (" + type_ + ")";
+}
+
+std::string ast::VarDecl::str(bool indent) {
+    if (value_ != nullptr) {
+        value_->set_indent((indent ? indent_ : 0) + 1);
+        return (indent ? get_indent() : "") + "VarDecl: " + name_ + attrib_str() + " (" + type_->str(true) + ")\n" + value_->str();
+    } else {
+        return (indent ? get_indent() : "") + "VarDecl: " + name_ + attrib_str() + " (" + type_->str(true) + ")";
+    }
+}
+
+ast::VarDecl::~VarDecl() {
+    delete value_;
 }
 
 std::string ast::FuncCall::str(bool indent) {

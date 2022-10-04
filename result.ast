@@ -17,9 +17,10 @@ NodeList:
 				NodeList: 
 					DummyNode: Jump stmt
 
-
 	ClassDecl: Main
 		NodeList: 
+			DummyNode: variable_declaration
+			DummyNode: variable_declaration
 			FunctionDecl: onProgramStart
 				NodeList: args
 					ParamDecl: String (args)
@@ -29,7 +30,20 @@ NodeList:
 							FuncCall(Identifier: println):
 								NodeList: args
 									KeyValue: msg
-										Literal(string): "Hello, world!"
+										Identifier: someString
+
+					DummyNode: Jump stmt
+
+			FunctionDecl: onInterrupt
+				NodeList: args
+					ParamDecl: Int (code)
+				NodeList: 
+					ParentOf(Identifier: io): 
+						ParentOf(Identifier: stdout): 
+							FuncCall(Identifier: println):
+								NodeList: args
+									KeyValue: msg
+										Literal(string): "Interrupted with code \(code)"
 
 					DummyNode: Jump stmt
 

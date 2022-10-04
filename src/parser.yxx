@@ -22,6 +22,7 @@ namespace yy {
     std::string* str;
     ast::ASTNode* node;
     ast::NodeList* nlist;
+    std::vector<ast::Attribute*>* alist;
 }
 
 %parse-param { yy::Lexer& lexer }
@@ -54,7 +55,7 @@ namespace yy {
 %token TOKEN_PIPE_EQUAL
 %token TOKEN_AMPERSAND_EQUAL
 %token TOKEN_TILDE_EQUAL
-%token TOKEN_HAT_EQUAL
+%token TOKEN_CARET_EQUAL
 %token TOKEN_DLAB_EQUAL
 %token TOKEN_DRAB_EQUAL
 %token TOKEN_DEQUAL
@@ -73,6 +74,7 @@ namespace yy {
 %token TOKEN_ENUM
 %token TOKEN_PROTOCOL
 %token TOKEN_EXTENSION
+%token TOKEN_MIXIN
 %token TOKEN_IF
 %token TOKEN_ELSE
 %token TOKEN_WHILE
@@ -87,11 +89,11 @@ namespace yy {
 %token TOKEN_CONTINUE
 
 %type<node> external_expressions external_statements package_name
-%type<node> expression postfix_expression identifier_expression
-%type<node> declaration class_declaration function_declaration variable_declaration
+%type<node> expression postfix_expression identifier_expression unary_expression prefix_expression
+%type<node> declaration class_declaration function_declaration variable_declaration mixin_declaration
 %type<node> closure_item statement expression_statement
-%type<node> keyvaluepair
 %type<nlist> translation_unit compound_declaration declaration_list parameter_declaration_list compound_statement closure_item_list argument_list
+%type<alist> attribute_list
 
 %start program
 %%
@@ -129,11 +131,19 @@ package_name
 
 declaration
     : class_declaration     { $$ = $1; }
+    | attribute_list class_declaration     { $$ = $2; $2->add_attributes($1); delete $1; }
     | struct_declaration    { $$ = new ast::DummyNode("struct_declaration"); }
+    | attribute_list struct_declaration    { $$ = new ast::DummyNode("struct_declaration"); }
     | enum_declaration      { $$ = new ast::DummyNode("enum_declaration"); }
+    | attribute_list enum_declaration      { $$ = new ast::DummyNode("enum_declaration"); }
     | protocol_declaration  { $$ = new ast::DummyNode("protocol_declaration"); }
+    | attribute_list protocol_declaration  { $$ = new ast::DummyNode("protocol_declaration"); }
     | function_declaration  { $$ = $1; }
-    | variable_declaration  { $$ = new ast::DummyNode("variable_declaration"); }
+    | attribute_list function_declaration  { $$ = $2; $2->add_attributes($1); delete $1; }
+    | variable_declaration  { $$ = $1; }
+    | attribute_list variable_declaration  { $$ = $2; $2->add_attributes($1); delete $1; }
+    | mixin_declaration     { $$ = $1; }
+    | attribute_list mixin_declaration     { $$ = $2; $2->add_attributes($1); delete $1; }
     ;
 
 class_declaration
@@ -156,10 +166,15 @@ protocol_declaration
     | TOKEN_PROTOCOL TOKEN_IDEN ':' TOKEN_IDEN compound_declaration
     ;
 
+mixin_declaration
+    : TOKEN_MIXIN TOKEN_IDEN compound_declaration                { $$ = new ast::MixinDecl($2, nullptr, $3); }
+    | TOKEN_MIXIN TOKEN_IDEN ':' TOKEN_IDEN compound_declaration { $$ = new ast::MixinDecl($2, new ast::Identifier($2), $5); }
+    ;
+
 function_declaration
-    : TOKEN_IDEN TOKEN_IDEN '(' ')' ';'                                           { $$ = new ast::DummyNode("Func decl -args -body"); }
-    | TOKEN_IDEN TOKEN_IDEN '(' parameter_declaration_list ')' ';'                { $$ = new ast::DummyNode("Func decl +args -body"); }
-    | TOKEN_IDEN TOKEN_IDEN '(' ')' compound_statement                            { $$ = new ast::FuncDecl($2, new ast::NodeList("args"), $5); }
+    : TOKEN_IDEN TOKEN_IDEN '(' ')' ';'                                           { $$ = new ast::FuncDecl($2, nullptr, nullptr); }
+    | TOKEN_IDEN TOKEN_IDEN '(' parameter_declaration_list ')' ';'                { $$ = new ast::FuncDecl($2, $4, nullptr); }
+    | TOKEN_IDEN TOKEN_IDEN '(' ')' compound_statement                            { $$ = new ast::FuncDecl($2, nullptr, $5); }
     | TOKEN_IDEN TOKEN_IDEN '(' parameter_declaration_list ')' compound_statement { $$ = new ast::FuncDecl($2, $4, $6); }
     ;
 
@@ -169,8 +184,8 @@ parameter_declaration_list
     ;
 
 variable_declaration
-    : TOKEN_IDEN TOKEN_IDEN ';'                         { $$ = new ast::DummyNode("Var decl"); }
-    | TOKEN_IDEN TOKEN_IDEN '=' expression ';'          { $$ = new ast::DummyNode("Var decl"); }
+    : TOKEN_IDEN TOKEN_IDEN ';'                         { $$ = new ast::VarDecl($2, new ast::Identifier($1)); }
+    | TOKEN_IDEN TOKEN_IDEN '=' expression ';'          { $$ = new ast::VarDecl($2, new ast::Identifier($1), $4); }
     ;
 
 compound_declaration
@@ -183,6 +198,10 @@ declaration_list
     | declaration_list declaration  { $$->add($2); }
     ;
 
+attribute_list
+    : '@' expression                 { $$ = new std::vector<ast::Attribute*>(); $$->push_back(new ast::Attribute($2)); }
+    | attribute_list '@' expression  { $1->push_back(new ast::Attribute($3)); }
+    ;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Expressions
@@ -197,16 +216,15 @@ expression
     | TOKEN_RAWSTRING { $$ = new ast::Literal($1, "string"); }
     | TOKEN_CHAR        { $$ = new ast::Literal($1, "char"); }
     | '(' expression ')' { $$ = new ast::DummyNode(); }
-    | prefix_expression { $$ = new ast::DummyNode(); }
-    | postfix_expression { $$ = $1; }
-//    | unary_expression
-    | binary_expression { $$ = new ast::DummyNode(); }
+    | unary_expression   { $$ = $1; }
+    | binary_expression { $$ = new ast::DummyNode("binary_expression"); }
     | ternary_expression { $$ = new ast::DummyNode(); }
     | identifier_expression { $$ = $1; }
     ;
 
 prefix_expression
-    : '@'
+    : '!' expression        { $$ = new ast::DummyNode(); }
+    | '~' expression        { $$ = new ast::DummyNode(); }
     ;
 
 postfix_expression
@@ -216,19 +234,13 @@ postfix_expression
     | expression '.' expression          { $$ = new ast::ParentOf($3, $1); }
 
 argument_list
-    : keyvaluepair                       { $$ = new ast::NodeList("args"); $$->add($1); }
-    | argument_list ',' keyvaluepair     { $$->add($1); }
-    ;
+    : TOKEN_IDEN ':' expression                       { $$ = new ast::NodeList("args"); $$->add(new ast::KeyValue($1, $3)); }
+    | argument_list ',' TOKEN_IDEN ':' expression     { $$->add(new ast::KeyValue($3, $5));  }
 
-keyvaluepair
-    : TOKEN_IDEN ':' expression           { $$ = new ast::KeyValue($1, $3); }
-    ;
-
- /*   
 unary_expression
-    :
+    : prefix_expression                    { $$ = $1; }
+    | postfix_expression                   { $$ = $1; }
     ;
-    */
 
 binary_expression
     : arithmetic_expression
@@ -237,6 +249,7 @@ binary_expression
     | relational_expression
     | equality_expression
     | assignment_expression
+    | complexed_assignment_expression
     ;
 
 ternary_expression
@@ -284,6 +297,15 @@ assignment_expression
     : identifier_expression '=' expression
     | '(' expression_list ')' '=' expression
     ;
+
+complexed_assignment_expression
+    : identifier_expression complexed_assignment_operator expression
+    | '(' expression_list ')' complexed_assignment_operator expression
+    ;
+
+complexed_assignment_operator: TOKEN_PLUS_EQUAL | TOKEN_MINUS_EQUAL | TOKEN_STAR_EQUAL 
+                             | TOKEN_SLASH_EQUAL | TOKEN_PERCENT_EQUAL | TOKEN_DSTAR_EQUAL 
+                             | TOKEN_PIPE_EQUAL | TOKEN_AMPERSAND_EQUAL | TOKEN_CARET_EQUAL;
 
 expression_list
     : expression

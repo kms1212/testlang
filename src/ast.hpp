@@ -7,17 +7,36 @@
 #include "location.hh"
 
 namespace ast {
+    class Attribute;
+
     class ASTNode {
     protected:
+        std::vector<Attribute*> attr;
         int indent_ = 0;
+
     public:
         ASTNode() { }
         virtual ~ASTNode() = default;
+
         virtual std::string str(bool indent = true) = 0;
 
         void set_indent(const int indent);
 
+        void add_attributes(std::vector<Attribute*>* attributes);
+        std::string attrib_str(bool indent = true);
+
         std::string get_indent();
+    };
+
+    class Attribute {
+    private:
+        ASTNode* expression_;
+
+    public:
+        Attribute(ASTNode* expression) : expression_(expression) { }
+        ~Attribute();
+
+        std::string str();
     };
 
     class DummyNode : public ASTNode {
@@ -112,6 +131,25 @@ namespace ast {
         std::string str(bool indent = true) override;
     };
 
+    class MixinDecl : public ASTNode {
+    private:
+        std::string name_;
+        ASTNode* parent_;
+        NodeList* body_;
+
+    public:
+        MixinDecl(
+            const std::string* name,
+            ASTNode* parent,
+            NodeList* body) :
+                name_(std::string(*name)),
+                parent_(parent),
+                body_(body) { }
+        ~MixinDecl();
+
+        std::string str(bool indent = true) override;
+    };
+
     class FuncDecl : public ASTNode {
     private:
         std::string name_;
@@ -142,6 +180,25 @@ namespace ast {
             const std::string* type) :
                 name_(std::string(*name)),
                 type_(std::string(*type)) { }
+
+        std::string str(bool indent = true) override;
+    };
+
+    class VarDecl : public ASTNode {
+    private:
+        std::string name_;
+        ASTNode* type_;
+        ASTNode* value_;
+
+    public:
+        VarDecl(
+            const std::string* name,
+            ASTNode* type,
+            ASTNode* value = nullptr) :
+                name_(std::string(*name)),
+                type_(type),
+                value_(value) { }
+        ~VarDecl();
 
         std::string str(bool indent = true) override;
     };
