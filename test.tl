@@ -17,8 +17,9 @@ mixin CliEntry: EntryPoint {
     @optional Void onInterrupt(code: Int);
 }
 
+@entry
 class Main: CliEntry {
-    Int someInteger = 0;
+    @32bit Int someInteger = 0;
     String someString = "Hello, world!";
     Test someTestClass = Test();
 

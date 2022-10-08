@@ -22,6 +22,7 @@ namespace yy {
     std::string* str;
     ast::ASTNode* node;
     ast::NodeList* nlist;
+    ast::Attribute* attr;
     std::vector<ast::Attribute*>* alist;
 }
 
@@ -29,7 +30,7 @@ namespace yy {
 %parse-param { ast::ASTNode** root }
 
 %code{
-#include "scanner.hpp"
+#include "lexer.hpp"
 #undef yylex
 #define yylex lexer.yylex
 }
@@ -87,27 +88,46 @@ namespace yy {
 %token TOKEN_RETURN
 %token TOKEN_BREAK
 %token TOKEN_CONTINUE
+%token TOKEN_TRY
+%token TOKEN_CATCH
+%token TOKEN_THROW
+%token TOKEN_DEFER
+%token TOKEN_ASYNC
+%token TOKEN_AWAIT
+
+%token<str> TOKEN_EXPL_BITSIZE
+
+%token TOKEN_PRIMITIVE_BOOL
+%token TOKEN_PRIMITIVE_CHAR
+%token TOKEN_PRIMITIVE_FLOAT
+%token TOKEN_PRIMITIVE_INT
+
+%token TOKEN_TRUE
+%token TOKEN_FALSE
+
+%token TOKEN_NIL
 
 %type<node> external_expressions external_statements package_name
 %type<node> expression postfix_expression identifier_expression unary_expression prefix_expression
 %type<node> declaration class_declaration function_declaration variable_declaration mixin_declaration
 %type<node> closure_item statement expression_statement
 %type<nlist> translation_unit compound_declaration declaration_list parameter_declaration_list compound_statement closure_item_list argument_list
+%type<attr> attribute_elem
 %type<alist> attribute_list
 
 %start program
 %%
-program: translation_unit           { *root = $1; };
+program: translation_unit                                                                       { *root = $1; };
 
 translation_unit
-    : external_expressions                       { $$ = new ast::NodeList(); $$->add($1); }
-    | translation_unit external_expressions      { $$->add($2); }
+    : external_expressions                                                                      { $$ = new ast::NodeList(); $$->add($1); }
+    | translation_unit external_expressions                                                     { $$->add($2); }
     ;
 
 external_expressions
-    : declaration             { $$ = $1; }
-    | external_statements     { $$ = $1; }
-    | expression              { $$ = new ast::DummyNode("exression"); } // tmp            
+    : declaration                                                                               { $$ = $1; }
+    | external_statements                                                                       { $$ = $1; }
+    | expression                                                                                { $$ = new ast::DummyNode("exression"); } // tmp            
     ;
 
 
@@ -116,12 +136,12 @@ external_expressions
 ///////////////////////////////////////////////////////////////////////////////
 
 external_statements
-    : TOKEN_IMPORT package_name ';'  { $$ = new ast::Import($2); }
+    : TOKEN_IMPORT package_name ';'                                                             { $$ = new ast::Import($2); }
     ;
 
 package_name
-    : TOKEN_IDEN                     { $$ = new ast::Identifier($1); }
-    | TOKEN_IDEN '.' package_name    { $$ = new ast::ParentOf($3, new ast::Identifier($1));}
+    : TOKEN_IDEN                                                                                { $$ = new ast::Identifier($1); }
+    | TOKEN_IDEN '.' package_name                                                               { $$ = new ast::ParentOf($3, new ast::Identifier($1));}
     ;
 
 
@@ -130,25 +150,25 @@ package_name
 ///////////////////////////////////////////////////////////////////////////////
 
 declaration
-    : class_declaration     { $$ = $1; }
-    | attribute_list class_declaration     { $$ = $2; $2->add_attributes($1); delete $1; }
-    | struct_declaration    { $$ = new ast::DummyNode("struct_declaration"); }
-    | attribute_list struct_declaration    { $$ = new ast::DummyNode("struct_declaration"); }
-    | enum_declaration      { $$ = new ast::DummyNode("enum_declaration"); }
-    | attribute_list enum_declaration      { $$ = new ast::DummyNode("enum_declaration"); }
-    | protocol_declaration  { $$ = new ast::DummyNode("protocol_declaration"); }
-    | attribute_list protocol_declaration  { $$ = new ast::DummyNode("protocol_declaration"); }
-    | function_declaration  { $$ = $1; }
-    | attribute_list function_declaration  { $$ = $2; $2->add_attributes($1); delete $1; }
-    | variable_declaration  { $$ = $1; }
-    | attribute_list variable_declaration  { $$ = $2; $2->add_attributes($1); delete $1; }
-    | mixin_declaration     { $$ = $1; }
-    | attribute_list mixin_declaration     { $$ = $2; $2->add_attributes($1); delete $1; }
+    : class_declaration                                                                         { $$ = $1; }
+    | attribute_list class_declaration                                                          { $$ = $2; $2->add_attributes($1); delete $1; }
+    | struct_declaration                                                                        { $$ = new ast::DummyNode("struct_declaration"); }
+    | attribute_list struct_declaration                                                         { $$ = new ast::DummyNode("struct_declaration"); }
+    | enum_declaration                                                                          { $$ = new ast::DummyNode("enum_declaration"); }
+    | attribute_list enum_declaration                                                           { $$ = new ast::DummyNode("enum_declaration"); }
+    | protocol_declaration                                                                      { $$ = new ast::DummyNode("protocol_declaration"); }
+    | attribute_list protocol_declaration                                                       { $$ = new ast::DummyNode("protocol_declaration"); }
+    | function_declaration                                                                      { $$ = $1; }
+    | attribute_list function_declaration                                                       { $$ = $2; $2->add_attributes($1); delete $1; }
+    | variable_declaration                                                                      { $$ = $1; }
+    | attribute_list variable_declaration                                                       { $$ = $2; $2->add_attributes($1); delete $1; }
+    | mixin_declaration                                                                         { $$ = $1; }
+    | attribute_list mixin_declaration                                                          { $$ = $2; $2->add_attributes($1); delete $1; }
     ;
 
 class_declaration
-    : TOKEN_CLASS TOKEN_IDEN compound_declaration                { $$ = new ast::ClassDecl($2, nullptr, $3); }
-    | TOKEN_CLASS TOKEN_IDEN ':' TOKEN_IDEN compound_declaration { $$ = new ast::ClassDecl($2, new ast::Identifier($2), $5); }
+    : TOKEN_CLASS TOKEN_IDEN compound_declaration                                               { $$ = new ast::ClassDecl($2, nullptr, $3); }
+    | TOKEN_CLASS TOKEN_IDEN ':' TOKEN_IDEN compound_declaration                                { $$ = new ast::ClassDecl($2, new ast::Identifier($2), $5); }
     ;
 
 struct_declaration
@@ -167,40 +187,45 @@ protocol_declaration
     ;
 
 mixin_declaration
-    : TOKEN_MIXIN TOKEN_IDEN compound_declaration                { $$ = new ast::MixinDecl($2, nullptr, $3); }
-    | TOKEN_MIXIN TOKEN_IDEN ':' TOKEN_IDEN compound_declaration { $$ = new ast::MixinDecl($2, new ast::Identifier($2), $5); }
+    : TOKEN_MIXIN TOKEN_IDEN compound_declaration                                               { $$ = new ast::MixinDecl($2, nullptr, $3); }
+    | TOKEN_MIXIN TOKEN_IDEN ':' TOKEN_IDEN compound_declaration                                { $$ = new ast::MixinDecl($2, new ast::Identifier($2), $5); }
     ;
 
 function_declaration
-    : TOKEN_IDEN TOKEN_IDEN '(' ')' ';'                                           { $$ = new ast::FuncDecl($2, nullptr, nullptr); }
-    | TOKEN_IDEN TOKEN_IDEN '(' parameter_declaration_list ')' ';'                { $$ = new ast::FuncDecl($2, $4, nullptr); }
-    | TOKEN_IDEN TOKEN_IDEN '(' ')' compound_statement                            { $$ = new ast::FuncDecl($2, nullptr, $5); }
-    | TOKEN_IDEN TOKEN_IDEN '(' parameter_declaration_list ')' compound_statement { $$ = new ast::FuncDecl($2, $4, $6); }
+    : TOKEN_IDEN TOKEN_IDEN '(' ')' ';'                                                         { $$ = new ast::FuncDecl($2, nullptr, nullptr); }
+    | TOKEN_IDEN TOKEN_IDEN '(' parameter_declaration_list ')' ';'                              { $$ = new ast::FuncDecl($2, $4, nullptr); }
+    | TOKEN_IDEN TOKEN_IDEN '(' ')' compound_statement                                          { $$ = new ast::FuncDecl($2, nullptr, $5); }
+    | TOKEN_IDEN TOKEN_IDEN '(' parameter_declaration_list ')' compound_statement               { $$ = new ast::FuncDecl($2, $4, $6); }
     ;
 
 parameter_declaration_list
-    : TOKEN_IDEN ':' TOKEN_IDEN                                 { $$ = new ast::NodeList("args"); $$->add(new ast::ParamDecl($3, $1)); }
-    | parameter_declaration_list ',' TOKEN_IDEN ':' TOKEN_IDEN  { $$->add(new ast::ParamDecl($5, $3)); }
+    : TOKEN_IDEN ':' TOKEN_IDEN                                                                 { $$ = new ast::NodeList("args"); $$->add(new ast::ParamDecl($3, $1)); }
+    | parameter_declaration_list ',' TOKEN_IDEN ':' TOKEN_IDEN                                  { $$->add(new ast::ParamDecl($5, $3)); }
     ;
 
 variable_declaration
-    : TOKEN_IDEN TOKEN_IDEN ';'                         { $$ = new ast::VarDecl($2, new ast::Identifier($1)); }
-    | TOKEN_IDEN TOKEN_IDEN '=' expression ';'          { $$ = new ast::VarDecl($2, new ast::Identifier($1), $4); }
+    : TOKEN_IDEN TOKEN_IDEN ';'                                                                 { $$ = new ast::VarDecl($2, new ast::Identifier($1)); }
+    | TOKEN_IDEN TOKEN_IDEN '=' expression ';'                                                  { $$ = new ast::VarDecl($2, new ast::Identifier($1), $4); }
     ;
 
 compound_declaration
-    : '{' '}'                  { $$ = new ast::NodeList(); }
-    | '{' declaration_list '}' { $$ = $2; }
+    : '{' '}'                                                                                   { $$ = new ast::NodeList(); }
+    | '{' declaration_list '}'                                                                  { $$ = $2; }
     ;
 
 declaration_list
-    : declaration                   { $$ = new ast::NodeList(); $$->add($1); }   
-    | declaration_list declaration  { $$->add($2); }
+    : declaration                                                                               { $$ = new ast::NodeList(); $$->add($1); }   
+    | declaration_list declaration                                                              { $$->add($2); }
     ;
 
 attribute_list
-    : '@' expression                 { $$ = new std::vector<ast::Attribute*>(); $$->push_back(new ast::Attribute($2)); }
-    | attribute_list '@' expression  { $1->push_back(new ast::Attribute($3)); }
+    : '@' attribute_elem                                                                        { $$ = new std::vector<ast::Attribute*>(); $$->push_back($2); }
+    | attribute_list '@' attribute_elem                                                         { $1->push_back($3); }
+    ;
+
+attribute_elem
+    : expression                                                                                { $$ = new ast::Attribute($1); }
+    | TOKEN_EXPL_BITSIZE                                                                        { $$ = new ast::Attribute($1); }
     ;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -208,38 +233,38 @@ attribute_list
 ///////////////////////////////////////////////////////////////////////////////
 
 expression
-    : TOKEN_NUM_DEC { $$ = new ast::Literal($1, "int"); }
-    | TOKEN_NUM_HEX { $$ = new ast::Literal($1, "int"); }
-    | TOKEN_NUM_OCT { $$ = new ast::Literal($1, "int"); }
-    | TOKEN_NUM_BIN { $$ = new ast::Literal($1, "int"); }
-    | TOKEN_STRING   { $$ = new ast::Literal($1, "string"); }
-    | TOKEN_RAWSTRING { $$ = new ast::Literal($1, "string"); }
-    | TOKEN_CHAR        { $$ = new ast::Literal($1, "char"); }
-    | '(' expression ')' { $$ = new ast::DummyNode(); }
-    | unary_expression   { $$ = $1; }
-    | binary_expression { $$ = new ast::DummyNode("binary_expression"); }
-    | ternary_expression { $$ = new ast::DummyNode(); }
-    | identifier_expression { $$ = $1; }
+    : TOKEN_NUM_DEC                                                                             { $$ = new ast::Literal($1, "int"); }
+    | TOKEN_NUM_HEX                                                                             { $$ = new ast::Literal($1, "int"); }
+    | TOKEN_NUM_OCT                                                                             { $$ = new ast::Literal($1, "int"); }
+    | TOKEN_NUM_BIN                                                                             { $$ = new ast::Literal($1, "int"); }
+    | TOKEN_STRING                                                                              { $$ = new ast::Literal($1, "string"); }
+    | TOKEN_RAWSTRING                                                                           { $$ = new ast::Literal($1, "string"); }
+    | TOKEN_CHAR                                                                                { $$ = new ast::Literal($1, "char"); }
+    | '(' expression ')'                                                                        { $$ = new ast::DummyNode(); }
+    | unary_expression                                                                          { $$ = $1; }
+    | binary_expression                                                                         { $$ = new ast::DummyNode("binary_expression"); }
+    | ternary_expression                                                                        { $$ = new ast::DummyNode(); }
+    | identifier_expression                                                                     { $$ = $1; }
     ;
 
 prefix_expression
-    : '!' expression        { $$ = new ast::DummyNode(); }
-    | '~' expression        { $$ = new ast::DummyNode(); }
+    : '!' expression                                                                            { $$ = new ast::DummyNode(); }
+    | '~' expression                                                                            { $$ = new ast::DummyNode(); }
     ;
 
 postfix_expression
-    : expression '[' expression ']'      { $$ = new ast::DummyNode(); }
-    | expression '(' ')'                 { $$ = new ast::DummyNode(); }
-    | expression '(' argument_list ')'   { $$ = new ast::FuncCall($1, $3); }
-    | expression '.' expression          { $$ = new ast::ParentOf($3, $1); }
+    : expression '[' expression ']'                                                             { $$ = new ast::DummyNode(); }
+    | expression '(' ')'                                                                        { $$ = new ast::DummyNode(); }
+    | expression '(' argument_list ')'                                                          { $$ = new ast::FuncCall($1, $3); }
+    | expression '.' expression                                                                 { $$ = new ast::ParentOf($3, $1); }
 
 argument_list
-    : TOKEN_IDEN ':' expression                       { $$ = new ast::NodeList("args"); $$->add(new ast::KeyValue($1, $3)); }
-    | argument_list ',' TOKEN_IDEN ':' expression     { $$->add(new ast::KeyValue($3, $5));  }
+    : TOKEN_IDEN ':' expression                                                                 { $$ = new ast::NodeList("args"); $$->add(new ast::KeyValue($1, $3)); }
+    | argument_list ',' TOKEN_IDEN ':' expression                                               { $$->add(new ast::KeyValue($3, $5));  }
 
 unary_expression
-    : prefix_expression                    { $$ = $1; }
-    | postfix_expression                   { $$ = $1; }
+    : prefix_expression                                                                         { $$ = $1; }
+    | postfix_expression                                                                        { $$ = $1; }
     ;
 
 binary_expression
@@ -257,10 +282,10 @@ ternary_expression
     ;
 
 identifier_expression
-    : TOKEN_IDEN              { $$ = new ast::Identifier($1); }
-    | TOKEN_IDEN '?'          { $$ = new ast::Identifier($1); }
-    | TOKEN_IDEN '!'          { $$ = new ast::Identifier($1); }
-    | TOKEN_IDEN '[' ']'      { $$ = new ast::Identifier($1); }
+    : TOKEN_IDEN                                                                                { $$ = new ast::Identifier($1); }
+    | TOKEN_IDEN '?'                                                                            { $$ = new ast::Identifier($1); }
+    | TOKEN_IDEN '!'                                                                            { $$ = new ast::Identifier($1); }
+    | TOKEN_IDEN '[' ']'                                                                        { $$ = new ast::Identifier($1); }
     ;
 
 arithmetic_expression
@@ -319,18 +344,18 @@ expression_list
 ///////////////////////////////////////////////////////////////////////////////
 
 statement
-    : expression_statement               { $$ = $1; }
-    | variable_declaration_statement     { $$ = new ast::DummyNode("Var decl stmt"); }
-    | if_statement                       { $$ = new ast::DummyNode("If stmt"); }
-    | while_statement                    { $$ = new ast::DummyNode("While stmt"); }
-    | for_statement                      { $$ = new ast::DummyNode("For stmt"); }
-    | switch_statement                   { $$ = new ast::DummyNode("Switch stmt"); }
-    | jump_statement                     { $$ = new ast::DummyNode("Jump stmt"); }
-    | compound_statement                 { $$ = new ast::DummyNode("Compound stmt"); }
+    : expression_statement                                                                      { $$ = $1; }
+    | variable_declaration_statement                                                            { $$ = new ast::DummyNode("Var decl stmt"); }
+    | if_statement                                                                              { $$ = new ast::DummyNode("If stmt"); }
+    | while_statement                                                                           { $$ = new ast::DummyNode("While stmt"); }
+    | for_statement                                                                             { $$ = new ast::DummyNode("For stmt"); }
+    | switch_statement                                                                          { $$ = new ast::DummyNode("Switch stmt"); }
+    | jump_statement                                                                            { $$ = new ast::DummyNode("Jump stmt"); }
+    | compound_statement                                                                        { $$ = new ast::DummyNode("Compound stmt"); }
     ;
 
 expression_statement
-    : expression ';'                     { $$ = $1; }
+    : expression ';'                                                                            { $$ = $1; }
     ;
 
 variable_declaration_statement
@@ -368,18 +393,18 @@ jump_statement
     ;
 
 compound_statement
-    : '{' '}'                            { $$ = new ast::NodeList(); }
-    | '{' closure_item_list '}'          { $$ = $2; }
+    : '{' '}'                                                                                   { $$ = new ast::NodeList(); }
+    | '{' closure_item_list '}'                                                                 { $$ = $2; }
     ;
 
 closure_item_list
-    : closure_item                       { $$ = new ast::NodeList(); $$->add($1); }
-    | closure_item_list closure_item     { $$ = $1; $$->add($2); }
+    : closure_item                                                                              { $$ = new ast::NodeList(); $$->add($1); }
+    | closure_item_list closure_item                                                            { $$ = $1; $$->add($2); }
     ;
 
 closure_item
-    : variable_declaration               { $$ = $1; }
-    | statement                          { $$ = $1; }
+    : variable_declaration                                                                      { $$ = $1; }
+    | statement                                                                                 { $$ = $1; }
     ;
 %%
 

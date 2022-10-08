@@ -1,7 +1,7 @@
 %top{
 #include <cstdio>
 #include <cstring>
-#include "parser.hpp"
+#include "parser.tab.hpp"
 #include "location.hh"
 #include "report.hpp"
 %}
@@ -29,6 +29,8 @@ IDENTIFIER ({LETTER}|_)({LETTER}|{DIGIT_DEC}|_)*
 
 \'{ANY_CHAR}*\'                { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_CHAR; }
 
+{DIGIT_DEC}{1,2}bit            { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_EXPL_BITSIZE; }
+
 {DIGIT_DEC}+                   { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_NUM_DEC; }
 0[xX]{DIGIT_HEX}+              { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_NUM_HEX; }
 0[oO]{DIGIT_OCT}+              { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_NUM_OCT; }
@@ -54,6 +56,22 @@ default                        return yy::parser::token::TOKEN_DEFAULT;
 return                         return yy::parser::token::TOKEN_RETURN;
 break                          return yy::parser::token::TOKEN_BREAK;
 continue                       return yy::parser::token::TOKEN_CONTINUE;
+try                            return yy::parser::token::TOKEN_TRY;
+catch                          return yy::parser::token::TOKEN_CATCH;
+throw                          return yy::parser::token::TOKEN_THROW;
+defer                          return yy::parser::token::TOKEN_DEFER;
+async                          return yy::parser::token::TOKEN_ASYNC;
+await                          return yy::parser::token::TOKEN_AWAIT;
+
+_primitive_int                 return yy::parser::token::TOKEN_PRIMITIVE_INT;
+_primitive_float               return yy::parser::token::TOKEN_PRIMITIVE_FLOAT;
+_primitive_bool                return yy::parser::token::TOKEN_PRIMITIVE_BOOL;
+_primitive_char                return yy::parser::token::TOKEN_PRIMITIVE_CHAR;
+
+true                           return yy::parser::token::TOKEN_TRUE;
+false                          return yy::parser::token::TOKEN_FALSE;
+
+nil                            return yy::parser::token::TOKEN_NIL;
 
 {IDENTIFIER}                   { std::string* s = new std::string(); *s = str(); yylval.str = s; return yy::parser::token::TOKEN_IDEN; }
 

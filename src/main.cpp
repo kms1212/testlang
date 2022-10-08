@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "scanner.hpp"
-#include "parser.hpp"
+#include "lexer.hpp"
+#include "parser.tab.hpp"
 #include "ast.hpp"
 
 int main(int argc, char** argv) {

@@ -39,7 +39,10 @@ ast::Attribute::~Attribute() {
 }
 
 std::string ast::Attribute::str() {
-    return expression_->str(false);
+    if (expression_ != nullptr)
+        return expression_->str();
+    else
+        return *str_;
 }
 
 std::string ast::DummyNode::str(bool indent) {

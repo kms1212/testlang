@@ -30,10 +30,13 @@ namespace ast {
 
     class Attribute {
     private:
-        ASTNode* expression_;
+        ASTNode* expression_ = nullptr;
+        std::string* str_ = nullptr;
 
     public:
         Attribute(ASTNode* expression) : expression_(expression) { }
+        Attribute(std::string* str) : str_(str) { }
+
         ~Attribute();
 
         std::string str();
